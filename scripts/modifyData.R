@@ -33,23 +33,36 @@ cols <- c('NabDyr', 'TANabDyr', 'GoednabDyr' )
 new_cols <- paste0('Tot', cols)
 dat[, (new_cols) := .SD * NDyr_mod, .SDcols = cols]
 
-fwrite(dat, '../data/data_merged.csv')
-
 #model dat
-dat_model <- data.table(t(read_excel('../model/Metanproduktion_Arrhenius_v7_02012023.xlsx')))
-names(dat_model) <- as.character(dat_model[1, ])
-dat_model <- dat_model[-c(1:2), ]
+dat_model_pig <- data.table(t(read_excel('../model/Metanproduktion_Arrhenius_v7_02012023.xlsx')))
+names(dat_model_pig) <- as.character(dat_model_pig[1, ])
+dat_model_pig <- dat_model_pig[-c(1:2), ]
 
+dat_model_cattle <- data.table(t(read_excel('../model/Metanproduktion_Arrhenius_v7_02012023.xlsx', sheet = 'Tabel_kvæg')))
+names(dat_model_cattle) <- as.character(dat_model_cattle[1, ])
+dat_model_cattle <- dat_model_cattle[-c(1:2), ]
+
+dat_model <- rbind(dat_model_pig, dat_model_cattle, fill =T)
 
 #fix names in model spreadsheet
 old_names <- c('CH4-udledning stald, kg/t gylle ab dyr', 
                'CH4-udledning stald og for/afhent.tank, kg/t gylle ab dyr', 
-               'CH4-udledning lager, kg/t gylle ab dyr')
+               'CH4-udledning lager, kg/t gylle ab dyr',
+               'CH4-udledning, afgasset gylle, kg/t gylle ab dyr',
+               'CH4-produktion, biogasanlæg, kg CH4/t gylle ab dyr',
+               'CH4-udledning stald, kg/t gylle ab stald', 
+               'CH4-udledning stald og for/afhent.tank, kg/t gylle ab stald', 
+               'CH4-udledning lager, kg/t gylle ab stald',
+               'CH4-udledning, afgasset gylle, kg/t gylle ab stald',
+               'CH4-produktion, biogasanlæg, inkl. halm, kg CH4/t gylle ab stald'
+               )
 
-new_names <- c('CH4_dyr_stald', 'CH4_dyr_Stald_aft', 'CH4_dyr_lager')
+new_names <- c('CH4_dyr_stald', 'CH4_dyr_Stald_aft', 'CH4_dyr_lager', 'CH4_dyr_afg', 'CH4_dyr_biog', 
+               'CH4_stald_stald', 'CH4_stald_Stald_aft', 'CH4_stald_lager', 'CH4_stald_afg', 'CH4_stald_biog'
+               )
 setnames(dat_model, old = old_names, new = new_names)
 
-dat_model <- dat_model[, (new_names) := lapply(.SD, as.numeric), .SDcols = new_names][, c(..new_names, 'StaldID')]
+dat_model <- dat_model[, c((new_names), 'GoedningsID') := lapply(.SD, as.numeric), .SDcols = c(new_names, 'GoedningsID')][, c(..new_names, 'StaldID', 'GoedningsID')]
 
 #rows with a dot in StaldID
 .rows <- dat_model[grepl("\\.", StaldID)]
@@ -64,12 +77,9 @@ dat_model <- dat_model[, (new_names) := lapply(.SD, as.numeric), .SDcols = new_n
   }
 ))
 
-dat_model <- rbind(dat_model[!grepl("\\.", StaldID)], .rows_rpl)
+dat_model <- rbind(dat_model[!grepl("\\.", StaldID)], .rows_rpl)[, StaldID := as.numeric(StaldID)]
 
+dat_merged <- merge.data.table(dat, dat_model, by = c('StaldID', 'GoedningsID'), all = T)
 
-
-rbindlist(replicate(length(id), .rows[,-'StaldID'], simplify = FALSE))
-
-merge.data.table(dat, dat_model[, (..new_names, staldID)])
-
+fwrite(dat_merged, '../data/dat_merged.csv', row.names = F)
 
