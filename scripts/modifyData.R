@@ -54,15 +54,19 @@ old_names <- c('CH4-udledning stald, kg/t gylle ab dyr',
                'CH4-udledning stald og for/afhent.tank, kg/t gylle ab stald', 
                'CH4-udledning lager, kg/t gylle ab stald',
                'CH4-udledning, afgasset gylle, kg/t gylle ab stald',
-               'CH4-produktion, biogasanlæg, inkl. halm, kg CH4/t gylle ab stald'
+               'CH4-produktion, biogasanlæg, inkl. halm, kg CH4/t gylle ab stald',
+               'NH3-udledning stald tempkorr, kg-N/t gylle ab dyr',
+               'NH3-udledning lager tempkorr, kg-N/t gylle ab dyr'
                )
 
 new_names <- c('CH4_dyr_stald', 'CH4_dyr_Stald_aft', 'CH4_dyr_lager', 'CH4_dyr_afg', 'CH4_dyr_biog', 
-               'CH4_stald_stald', 'CH4_stald_Stald_aft', 'CH4_stald_lager', 'CH4_stald_afg', 'CH4_stald_biog'
+               'CH4_stald_stald', 'CH4_stald_Stald_aft', 'CH4_stald_lager', 'CH4_stald_afg', 'CH4_stald_biog', 
+               'NH3_dyr_stald', 'NH3_dyr_lager'
                )
+
 setnames(dat_model, old = old_names, new = new_names)
 
-dat_model <- dat_model[, c((new_names), 'GoedningsID') := lapply(.SD, as.numeric), .SDcols = c(new_names, 'GoedningsID')][, c(..new_names, 'StaldID', 'GoedningsID')]
+dat_model <- dat_model[, c((new_names), 'GoedningsID') := lapply(.SD, as.numeric), .SDcols = c(new_names, 'GoedningsID')][, c(..new_names, 'StaldID', 'GoedningsID','Scenarie')]
 
 #rows with a dot in StaldID
 .rows <- dat_model[grepl("\\.", StaldID)]
@@ -82,4 +86,7 @@ dat_model <- rbind(dat_model[!grepl("\\.", StaldID)], .rows_rpl)[, StaldID := as
 dat_merged <- merge.data.table(dat, dat_model, by = c('StaldID', 'GoedningsID'), all = T)
 
 fwrite(dat_merged, '../data/dat_merged.csv', row.names = F)
+
+
+
 
