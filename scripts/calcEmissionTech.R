@@ -41,7 +41,7 @@ model_gruppe_navne <- c('toklimastald_smågrise',
                      'kvæg_andre_hyppig')
 
 
-cols <- c('CH4_dyr_stald', 'CH4_dyr_lager', 'NH3_dyr_stald', 'NH3_dyr_lager')
+cols <- c('CH4_dyr_stald', 'CH4_dyr_lager', 'CH4_dyr_biog', 'NH3_dyr_stald', 'NH3_dyr_lager','N2O_dyr_tot')
 
 tot_cols <- paste0('tot', cols)
 
@@ -52,29 +52,37 @@ biogas <- copy(dat)[Scenarie == 'kontrol'][
   , ":="(CH4_dyr_stald = CH4_dyr_Stald_aft, 
          CH4_dyr_lager = CH4_dyr_afg)][
            , Scenarie := 'biogas']
-hyppig_biogas <- copy(dat)[Scenarie == 'ugentlig' | Scenarie == 'hyppig'][
+ugentlig_biogas <- copy(dat)[Scenarie == 'ugentlig'][
   , ":="(CH4_dyr_stald = CH4_dyr_Stald_aft, 
          CH4_dyr_lager = CH4_dyr_afg)][
-           , Scenarie := 'hyppig_biogas']
+           , Scenarie := 'ugentlig_biogas']
 
 køling_biogas <- copy(dat)[Scenarie == 'køling'][
   , ":="(CH4_dyr_stald = CH4_dyr_Stald_aft, 
          CH4_dyr_lager = CH4_dyr_afg)][
            , Scenarie := 'køling_biogas']
 
-dat <- rbind(dat, biogas, hyppig_biogas, køling_biogas)
+dat <- rbind(dat, biogas, ugentlig_biogas, køling_biogas)
 
 # Multiply each column in 'cols' by 1 (no change), emis units in kg CH4/m3/year or kg CH4/year, kg CO2 eq/m3/year, kg CO2 eq/year
-emis<- dat[, (cols) := lapply(.SD, function(x) x * 1), .SDcols = cols, by = c('StaldID', 'Scenarie', 'GoedningsNavn')][
+emis <- dat[, (cols) := lapply(.SD, function(x) x * 1), .SDcols = cols, by = c('StaldID', 'Scenarie', 'GoedningsNavn')][
   , (tot_cols) := lapply(.SD, function(x) x * TotGoednabDyr), .SDcols = cols, by = c('StaldID', 'Scenarie')][
     , ":="(CH4_dyr_tot = CH4_dyr_stald + CH4_dyr_lager,
            NH3_dyr_tot = NH3_dyr_stald + NH3_dyr_lager)][
-             , CO2_eq := CH4_dyr_tot * ..CO2_eq[['CH4']] + NH3_dyr_tot * 0.01 * ..CO2_eq[['N2O']]][
+             , CO2_eq_tot := CH4_dyr_tot * ..CO2_eq[['CH4']] + NH3_dyr_tot * 0.01 * 44/28 * ..CO2_eq[['N2O']] + N2O_dyr_tot * ..CO2_eq[['N2O']]][
                , ":="(totCH4_dyr_tot = totCH4_dyr_stald + totCH4_dyr_lager,
                       totNH3_dyr_tot = totNH3_dyr_stald + totNH3_dyr_lager)][
-                        , totCO2_eq := totCH4_dyr_tot * ..CO2_eq[['CH4']] + totNH3_dyr_tot * 0.01 * ..CO2_eq[['N2O']]]
+                        , totCO2_eq_tot := totCH4_dyr_tot * ..CO2_eq[['CH4']] + 
+                          totNH3_dyr_tot * 0.01 * 44/28 * ..CO2_eq[['N2O']] + 
+                          totN2O_dyr_tot * ..CO2_eq[['N2O']]]
 
 emis[, model_gruppe := 'char']
+emis[!grepl('biogas', Scenarie), ":="(CH4_dyr_biog = 0, totCH4_dyr_biog = 0)]
+emis[, ":="(CO2_eq_fortræng = CH4_dyr_biog * 2.8,
+            totCO2_eq_fortræng = totCH4_dyr_biog * 2.8)][
+              , ":="(CO2_eq_tot = CO2_eq_tot - CO2_eq_fortræng,
+                     totCO2_eq_tot = totCO2_eq_tot - totCO2_eq_fortræng)
+            ]
 
 for(i in model_gruppe_navne){
   emis[StaldID %in% eval(parse(text = i)), model_gruppe := i]
@@ -84,23 +92,34 @@ emis_summary <- emis[, .(CH4_dyr_stald = unique(CH4_dyr_stald),
                          CH4_dyr_lager = unique(CH4_dyr_lager),
                          CH4_dyr_tot = unique(CH4_dyr_tot),
                          NH3_dyr_tot = unique(NH3_dyr_tot),
-                         totCO2_eq = sum(totCO2_eq)), by = c('Scenarie', 'model_gruppe')]
+                         N2O_dyr_tot = unique(N2O_dyr_tot),
+                         CO2_eq_fortræng = unique(CO2_eq_fortræng),
+                         CO2_eq_tot = unique(CO2_eq_tot),
+                         totCO2_eq_tot = sum(totCO2_eq_tot)), by = c('Scenarie', 'model_gruppe')]
 
 TotGoednabDyr <- fread('../output/TotGoedningabDyr.csv')
-Teknologi <- setDT(read_excel('../data/teknologi_udbredelse.xlsx'))
+Tech_udb <- setDT(read_excel('../data/teknologi_udbredelse.xlsx'))
+Tech_pot <- setDT(read_excel('../data/teknologi_potentiale.xlsx'))
 
-out <- merge.data.table(emis_summary, TotGoednabDyr)[
-  , ":="(udbredelse = 0,
-         potentiale = 100)][
-           model_gruppe == 'løs_individuel_søer' & (Scenarie == 'ugentlig' | Scenarie == 'linespil'), udbredelse := 40]
+out <- merge.data.table(emis_summary, TotGoednabDyr)[Scenarie != "" & Scenarie != 'char']
 
-for(i in Teknologi[, model_gruppe]){
-  out[model_gruppe == i & Scenarie == 'køling', udbredelse := ..Teknologi[model_gruppe == i, køling]]
-  out[model_gruppe == i & Scenarie == 'forsuring', udbredelse := ..Teknologi[model_gruppe == i, forsuring]]
-  out[model_gruppe == i & Scenarie == 'biogas', udbredelse := ..Teknologi[model_gruppe == i, biogas]]
+techs <- unique(emis_summary[Scenarie != 'kontrol' & Scenarie != 'linespil', Scenarie])
+model_gruppe <- unique(out[, model_gruppe])
+
+for(i in model_gruppe){
+  for(o in techs){
+    if(any(out[model_gruppe == i, Scenarie] == o)){
+       out[model_gruppe == i & Scenarie == o, ":="(udbredelse = ..Tech_udb[model_gruppe == i, eval(parse(text = o))],
+                                                     potentiale = ..Tech_pot[model_gruppe == i, eval(parse(text = o))])]
+    }
+  }
 }
 
-out <- out[, totCO2_eq_pot := totCO2_eq * (potentiale-udbredelse)/100][order(Scenarie)][Scenarie != ""]
+out <- out[, totCO2_eq_tot_pot := totCO2_eq_tot * (potentiale-udbredelse)/100][order(Scenarie)][Scenarie != ""]
+
+red_cols <- c('CO2_eq_tot', 'totCO2_eq_tot_pot')
+
+table <- out[, ]
 
 
 
