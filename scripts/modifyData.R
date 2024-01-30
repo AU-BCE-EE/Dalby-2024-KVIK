@@ -26,7 +26,7 @@ frac_løbestald <- 1- frac_farestald
 #make new coloumn "NDyr_mod" which can be directly multiplied with excretions to get yearly excretion.
 dat[, NDyr_mod := NDyr]
 dat[StaldID %in% c(64, 65), NDyr_mod := NDyr * 1/frac_farestald]
-dat[!StaldID %in% c(64, 65) & DyrID == 12, NDyr_mod := 1/frac_løbestald]
+dat[!StaldID %in% c(64, 65) & DyrID == 12, NDyr_mod := NDyr * 1/frac_løbestald]
 
 #calculate yearly excretions on columns
 cols <- c('NabDyr', 'TANabDyr', 'GoednabDyr' )
@@ -83,7 +83,7 @@ dat_model <- dat_model[, c((new_names), 'GoedningsID') := lapply(.SD, as.numeric
 
 dat_model <- rbind(dat_model[!grepl("\\.", StaldID)], .rows_rpl)[, StaldID := as.numeric(StaldID)]
 
-dat_merged <- merge.data.table(dat, dat_model, by = c('StaldID', 'GoedningsID'), all = T)
+dat_merged <- merge.data.table(dat, dat_model, by = c('StaldID', 'GoedningsID'), all = T, allow.cartesian=TRUE)
 
 fwrite(dat_merged, '../data/dat_merged.csv', row.names = F)
 
