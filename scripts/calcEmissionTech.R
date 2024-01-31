@@ -48,23 +48,29 @@ tot_cols <- paste0('tot', cols)
 # Initialize the total columns with 0
 dat <- dat[, (tot_cols) := 0][!duplicated(dat)]
 
+# if biogas is used change the CH4 produktion to include emission from prestorage tank and change storage to digestate emission.
+# also change N2O emission (based on national inventory report 2023, p431)
 biogas <- copy(dat)[Scenarie == 'kontrol'][
   , ":="(CH4_dyr_stald = CH4_dyr_Stald_aft, 
-         CH4_dyr_lager = CH4_dyr_afg)][
+         CH4_dyr_lager = CH4_dyr_afg,
+         N2O_dyr_tot = N2O_dyr_tot * 0.0006/0.00475)][
            , Scenarie := 'biogas']
 ugentlig_biogas <- copy(dat)[Scenarie == 'ugentlig'][
   , ":="(CH4_dyr_stald = CH4_dyr_Stald_aft, 
-         CH4_dyr_lager = CH4_dyr_afg)][
+         CH4_dyr_lager = CH4_dyr_afg,
+         N2O_dyr_tot = N2O_dyr_tot * 0.0006/0.00475)][
            , Scenarie := 'ugentlig_biogas']
 
 køling_biogas <- copy(dat)[Scenarie == 'køling'][
   , ":="(CH4_dyr_stald = CH4_dyr_Stald_aft, 
-         CH4_dyr_lager = CH4_dyr_afg)][
+         CH4_dyr_lager = CH4_dyr_afg,
+         N2O_dyr_tot = N2O_dyr_tot * 0.0006/0.00475)][
            , Scenarie := 'køling_biogas']
 
 dat <- rbind(dat, biogas, ugentlig_biogas, køling_biogas)
 
 # Multiply each column in 'cols' by 1 (no change), emis units in kg CH4/m3/year or kg CH4/year, kg CO2 eq/m3/year, kg CO2 eq/year
+# totCO2_eq_tot is in kt CO2 eq (so kg CO2 eq multiplied by 10^6)
 emis <- dat[, (cols) := lapply(.SD, function(x) x * 1), .SDcols = cols, by = c('StaldID', 'Scenarie', 'GoedningsNavn')][
   , (tot_cols) := lapply(.SD, function(x) x * TotGoednabDyr), .SDcols = cols, by = c('StaldID', 'Scenarie')][
     , ":="(CH4_dyr_tot = CH4_dyr_stald + CH4_dyr_lager,
@@ -72,14 +78,15 @@ emis <- dat[, (cols) := lapply(.SD, function(x) x * 1), .SDcols = cols, by = c('
              , CO2_eq_tot := CH4_dyr_tot * ..CO2_eq[['CH4']] + NH3_dyr_tot * 0.01 * 44/28 * ..CO2_eq[['N2O']] + N2O_dyr_tot * ..CO2_eq[['N2O']]][
                , ":="(totCH4_dyr_tot = totCH4_dyr_stald + totCH4_dyr_lager,
                       totNH3_dyr_tot = totNH3_dyr_stald + totNH3_dyr_lager)][
-                        , totCO2_eq_tot := totCH4_dyr_tot * ..CO2_eq[['CH4']] + 
+                        , totCO2_eq_tot := (totCH4_dyr_tot * ..CO2_eq[['CH4']] + 
                           totNH3_dyr_tot * 0.01 * 44/28 * ..CO2_eq[['N2O']] + 
-                          totN2O_dyr_tot * ..CO2_eq[['N2O']]]
+                          totN2O_dyr_tot * ..CO2_eq[['N2O']])/1e+06]
 
+# totCO2_eq_fortræng is in kt CO2 eq (so kg CO2 eq multiplied by 10^6)
 emis[, model_gruppe := 'char']
 emis[!grepl('biogas', Scenarie), ":="(CH4_dyr_biog = 0, totCH4_dyr_biog = 0)]
 emis[, ":="(CO2_eq_fortræng = CH4_dyr_biog * 2.8,
-            totCO2_eq_fortræng = totCH4_dyr_biog * 2.8)][
+            totCO2_eq_fortræng = (totCH4_dyr_biog * 2.8)/1e+06)][
               , ":="(CO2_eq_tot = CO2_eq_tot - CO2_eq_fortræng,
                      totCO2_eq_tot = totCO2_eq_tot - totCO2_eq_fortræng)
             ]
@@ -97,7 +104,7 @@ emis_summary <- emis[, .(CH4_dyr_stald = unique(CH4_dyr_stald),
                          CO2_eq_tot = unique(CO2_eq_tot),
                          totCO2_eq_tot = sum(totCO2_eq_tot)), by = c('Scenarie', 'model_gruppe')]
 
-TotGoednabDyr <- fread('../output/TotGoedningabDyr.csv')
+TotGoednabDyr <- setDT(read_excel('../output/TotGoedningabDyr.xlsx'))
 Tech_udb <- setDT(read_excel('../data/teknologi_udbredelse.xlsx'))
 Tech_pot <- setDT(read_excel('../data/teknologi_potentiale.xlsx'))
 
@@ -115,11 +122,12 @@ for(i in model_gruppe){
   }
 }
 
-out <- out[, totCO2_eq_tot_pot := totCO2_eq_tot * (potentiale-udbredelse)/100][order(Scenarie)][Scenarie != ""]
+out <- out[Scenarie != 'kontrol', totCO2_eq_tot := totCO2_eq_tot * (potentiale-udbredelse)/100][order(Scenarie)]
+out <- out[, ":="(totCO2_eq_tot_pot_red = (totCO2_eq_tot[Scenarie == 'kontrol'] - totCO2_eq_tot),
+                  CO2_eq_tot_red = (CO2_eq_tot[Scenarie == 'kontrol'] - CO2_eq_tot)), 
+           by = c('model_gruppe')][order(Scenarie),]
 
-red_cols <- c('CO2_eq_tot', 'totCO2_eq_tot_pot')
 
-table <- out[, ]
-
-
+fwrite(out, '../output/emis_table.csv')
+write.xlsx(out, '../output/emis_table.xlsx')
 

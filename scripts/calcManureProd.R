@@ -71,7 +71,7 @@ TotGoednabDyr_table <- data.table(model_gruppe = c('toklimastald_smågrise',
                                                 'kvæg_dybstrøelse',
                                                 'kvæg_fastgødning',
                                                 'kvæg_ajle'),
-                                  TotGoednabDyr_tons_year = c(gylle[StaldID %in% toklimastald_smågrise_StaldID, sum(TotGoednabDyr)],
+                                  TotGoednabDyr_kt_year = c(gylle[StaldID %in% toklimastald_smågrise_StaldID, sum(TotGoednabDyr)],
                                                     gylle[StaldID %in% spalter_smågrise_StaldID, sum(TotGoednabDyr)],
                                                     gylle[StaldID %in% spalter_33_67_slagtesvin_StaldID, sum(TotGoednabDyr)],
                                                     gylle[StaldID %in% spalter_50_75_slagtesvin_StaldID, sum(TotGoednabDyr)],
@@ -90,9 +90,9 @@ TotGoednabDyr_table <- data.table(model_gruppe = c('toklimastald_smågrise',
                                                     gylle[StaldID %in% kvæg_andre_hyppig_StaldID, sum(TotGoednabDyr)],
                                                     dybstrøelse[StaldID %in% kvæg_dybstrøelse_StaldID, sum(TotGoednabDyr)],
                                                     fastgødning[StaldID %in% kvæg_fastgødning_StaldID, sum(TotGoednabDyr)],
-                                                    ajle[StaldID %in% kvæg_ajle_StaldID, sum(TotGoednabDyr)]))
-                                                    
+                                                    ajle[StaldID %in% kvæg_ajle_StaldID, sum(TotGoednabDyr)])/1000)
+# manure is kt produced per year                                                    
 write.xlsx(TotGoednabDyr_table, '../output/TotGoedningabDyr.xlsx')
-fwrite(TotGoednabDyr_table, '../output/TotGoedningabDyr.csv')
+
 
 
