@@ -5,7 +5,7 @@ library(openxlsx)
 
 dat <- fread('../data/dat_merged.csv')
 
-CO2_eq <- c(CH4 = 28, N2O = 298)
+CO2_eq <- c(CH4 = 28, N2O = 265)
 
 ## SVIN
 # gylle systemer
