@@ -40,8 +40,8 @@ model_gruppe_navne <- c('toklimastald_smågrise',
                      'kvæg_hæld_fast_skrab',
                      'kvæg_andre_hyppig')
 
-
-cols <- c('CH4_dyr_stald', 'CH4_dyr_lager', 'CH4_dyr_biog', 'NH3_dyr_stald', 'NH3_dyr_lager','N2O_dyr_tot')
+dat[, N2O_dyr_indir_tot := (NH3_dyr_stald + NH3_dyr_lager)* 0.01 * 44/28]
+cols <- c('CH4_dyr_stald', 'CH4_dyr_lager', 'CH4_dyr_biog', 'NH3_dyr_stald', 'NH3_dyr_lager','N2O_dyr_dir_tot', 'N2O_dyr_indir_tot')
 
 tot_cols <- paste0('tot', cols)
 
@@ -53,18 +53,18 @@ dat <- dat[, (tot_cols) := 0][!duplicated(dat)]
 biogas <- copy(dat)[Scenarie == 'kontrol'][
   , ":="(CH4_dyr_stald = CH4_dyr_Stald_aft, 
          CH4_dyr_lager = CH4_dyr_afg,
-         N2O_dyr_tot = N2O_dyr_tot * 0.0006/0.00475)][
+         N2O_dyr_dir_tot = N2O_dyr_dir_tot * 0.0006/0.00475)][
            , Scenarie := 'biogas']
 ugentlig_biogas <- copy(dat)[Scenarie == 'ugentlig'][
   , ":="(CH4_dyr_stald = CH4_dyr_Stald_aft, 
          CH4_dyr_lager = CH4_dyr_afg,
-         N2O_dyr_tot = N2O_dyr_tot * 0.0006/0.00475)][
+         N2O_dyr_dir_tot = N2O_dyr_dir_tot * 0.0006/0.00475)][
            , Scenarie := 'ugentlig_biogas']
 
 køling_biogas <- copy(dat)[Scenarie == 'køling'][
   , ":="(CH4_dyr_stald = CH4_dyr_Stald_aft, 
          CH4_dyr_lager = CH4_dyr_afg,
-         N2O_dyr_tot = N2O_dyr_tot * 0.0006/0.00475)][
+         N2O_dyr_dir_tot = N2O_dyr_dir_tot * 0.0006/0.00475)][
            , Scenarie := 'køling_biogas']
 
 dat <- rbind(dat, biogas, ugentlig_biogas, køling_biogas)
@@ -74,12 +74,14 @@ dat <- rbind(dat, biogas, ugentlig_biogas, køling_biogas)
 emis <- dat[, (cols) := lapply(.SD, function(x) x * 1), .SDcols = cols, by = c('StaldID', 'Scenarie', 'GoedningsNavn')][
   , (tot_cols) := lapply(.SD, function(x) x * TotGoednabDyr), .SDcols = cols, by = c('StaldID', 'Scenarie')][
     , ":="(CH4_dyr_tot = CH4_dyr_stald + CH4_dyr_lager,
-           NH3_dyr_tot = NH3_dyr_stald + NH3_dyr_lager)][
-             , CO2_eq_tot := CH4_dyr_tot * ..CO2_eq[['CH4']] + NH3_dyr_tot * 0.01 * 44/28 * ..CO2_eq[['N2O']] + N2O_dyr_tot * ..CO2_eq[['N2O']]][
+           NH3_dyr_tot = NH3_dyr_stald + NH3_dyr_lager,
+           N2O_dyr_tot = N2O_dyr_indir_tot + N2O_dyr_dir_tot)][
+             , ":=" (CO2_eq_tot_CH4 = CH4_dyr_tot * ..CO2_eq[['CH4']],
+                      CO2_eq_tot_N2O = N2O_dyr_tot * ..CO2_eq[['N2O']])][
+                        , CO2_eq_tot := CO2_eq_tot_N2O + CO2_eq_tot_CH4][
                , ":="(totCH4_dyr_tot = totCH4_dyr_stald + totCH4_dyr_lager,
-                      totNH3_dyr_tot = totNH3_dyr_stald + totNH3_dyr_lager)][
+                      totN2O_dyr_tot = totN2O_dyr_dir_tot + totN2O_dyr_indir_tot)][
                         , totCO2_eq_tot := (totCH4_dyr_tot * ..CO2_eq[['CH4']] + 
-                          totNH3_dyr_tot * 0.01 * 44/28 * ..CO2_eq[['N2O']] + 
                           totN2O_dyr_tot * ..CO2_eq[['N2O']])/1e+06]
 
 # totCO2_eq_fortræng is in kt CO2 eq (so kg CO2 eq multiplied by 10^6)
@@ -98,7 +100,6 @@ for(i in model_gruppe_navne){
 emis_summary <- emis[, .(CH4_dyr_stald = unique(CH4_dyr_stald), 
                          CH4_dyr_lager = unique(CH4_dyr_lager),
                          CH4_dyr_tot = unique(CH4_dyr_tot),
-                         NH3_dyr_tot = unique(NH3_dyr_tot),
                          N2O_dyr_tot = unique(N2O_dyr_tot),
                          CO2_eq_fortræng = unique(CO2_eq_fortræng),
                          CO2_eq_tot = unique(CO2_eq_tot),
@@ -110,7 +111,7 @@ Tech_pot <- setDT(read_excel('../data/teknologi_potentiale.xlsx'))
 
 out <- merge.data.table(emis_summary, TotGoednabDyr)[Scenarie != "" & Scenarie != 'char']
 
-techs <- unique(emis_summary[Scenarie != 'kontrol' & Scenarie != 'linespil', Scenarie])
+techs <- unique(emis_summary[Scenarie != 'kontrol', Scenarie])
 model_gruppe <- unique(out[, model_gruppe])
 
 for(i in model_gruppe){
@@ -127,6 +128,10 @@ out <- out[, ":="(totCO2_eq_tot_pot_red = (totCO2_eq_tot[Scenarie == 'kontrol'] 
                   CO2_eq_tot_red = (CO2_eq_tot[Scenarie == 'kontrol'] - CO2_eq_tot)), 
            by = c('model_gruppe')][order(Scenarie),]
 
+
+#how much CO2 eq comes from N2O vs CH4?
+CH4_vs_N2O <- out[Scenarie == 'kontrol', .(N2O_CO2_eq = mean(N2O_dyr_tot * ..CO2_eq[['N2O']]), CH4_CO2_eq = mean(CH4_dyr_tot * ..CO2_eq[['CH4']])), by = c('Dyr')][
+  , frac_N2O_CO2_eq := N2O_CO2_eq/(N2O_CO2_eq + CH4_CO2_eq)]
 
 fwrite(out, '../output/emis_table.csv')
 write.xlsx(out, '../output/emis_table.xlsx')

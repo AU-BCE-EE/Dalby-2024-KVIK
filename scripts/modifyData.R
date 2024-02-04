@@ -33,6 +33,10 @@ cols <- c('NabDyr', 'TANabDyr', 'GoednabDyr' )
 new_cols <- paste0('Tot', cols)
 dat[, (new_cols) := .SD * NDyr_mod, .SDcols = cols]
 
+#
+dyretype_goedning <- dat[, sum(TotGoednabDyr), by = 'DyreType']
+
+
 #model dat
 dat_model_pig <- data.table(t(read_excel('../model/Metanproduktion_Arrhenius_v8_30012024.xlsx')))
 names(dat_model_pig) <- as.character(dat_model_pig[1, ])
@@ -62,7 +66,7 @@ old_names <- c('CH4-udledning stald, kg/t gylle ab dyr',
 
 new_names <- c('CH4_dyr_stald', 'CH4_dyr_Stald_aft', 'CH4_dyr_lager', 'CH4_dyr_afg', 'CH4_dyr_biog', 
                'CH4_stald_stald', 'CH4_stald_Stald_aft', 'CH4_stald_lager', 'CH4_stald_afg', 'CH4_stald_biog', 
-               'NH3_dyr_stald', 'NH3_dyr_lager', 'N2O_dyr_tot'
+               'NH3_dyr_stald', 'NH3_dyr_lager', 'N2O_dyr_dir_tot'
                )
 
 setnames(dat_model, old = old_names, new = new_names)

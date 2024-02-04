@@ -2,8 +2,11 @@ rm(list = ls())
 
 library(data.table)
 library(openxlsx)
+library(readxl)
 
 dat <- fread('../data/dat_merged.csv')
+
+Goedn_dyretype <- dat[!duplicated(dat[, .(GoedningsNavn, StaldID, DyrNavn)]), .(TotGoednabDyr = sum(TotGoednabDyr)/1000), by = 'DyreType']
 
 ## SVIN
 # gylle systemer
@@ -45,9 +48,9 @@ kvæg_fastgødning_StaldID <- c(3)
 # ajle
 kvæg_ajle_StaldID <- c(3)
 
-gylle <- dat[Scenarie == 'kontrol' & 'Gylle' %in% GoedningsNavn, .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
-dybstrøelse <- dat[c('Dybstrøelse') %in% GoedningsNavn, .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
-fastgødning <- dat[c('Fast gødning') %in% GoedningsNavn, .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
+gylle <- dat[GoedningsNavn == 'Gylle' & (Scenarie == 'kontrol'|Scenarie == ""| is.na(Scenarie)), .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID','GoedningsNavn')]
+dybstrøelse <- dat[grepl('Dybstrøelse', GoedningsNavn), .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
+fastgødning <- dat[grepl('Fast gødning', GoedningsNavn), .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
 ajle <- dat[GoedningsNavn == 'Ajle', .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
 ude <- dat[GoedningsNavn == 'Ude', .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
 
@@ -71,6 +74,26 @@ TotGoednabDyr_table <- data.table(model_gruppe = c('toklimastald_smågrise',
                                                 'kvæg_dybstrøelse',
                                                 'kvæg_fastgødning',
                                                 'kvæg_ajle'),
+                                  DyreType = c('smågrise',
+                                               'smågrise',
+                                               'slagtesvin',
+                                               'slagtesvin',
+                                               'slagtesvin',
+                                               'søer',
+                                               'søer',
+                                               'søer',
+                                               'svin',
+                                               'svin',
+                                               'svin',
+                                               'svin',
+                                               'kvæg',
+                                               'kvæg',
+                                               'kvæg',
+                                               'kvæg',
+                                               'kvæg',
+                                               'kvæg',
+                                               'kvæg',
+                                               'kvæg'),
                                   TotGoednabDyr_kt_year = c(gylle[StaldID %in% toklimastald_smågrise_StaldID, sum(TotGoednabDyr)],
                                                     gylle[StaldID %in% spalter_smågrise_StaldID, sum(TotGoednabDyr)],
                                                     gylle[StaldID %in% spalter_33_67_slagtesvin_StaldID, sum(TotGoednabDyr)],
@@ -91,6 +114,21 @@ TotGoednabDyr_table <- data.table(model_gruppe = c('toklimastald_smågrise',
                                                     dybstrøelse[StaldID %in% kvæg_dybstrøelse_StaldID, sum(TotGoednabDyr)],
                                                     fastgødning[StaldID %in% kvæg_fastgødning_StaldID, sum(TotGoednabDyr)],
                                                     ajle[StaldID %in% kvæg_ajle_StaldID, sum(TotGoednabDyr)])/1000)
+
+
+TotGoednabDyr_table[grepl('svin|smågrise|søer|slagtesvin', DyreType), Dyr := 'svin']
+TotGoednabDyr_table[is.na(Dyr), Dyr := 'kvæg']
+TotGoednabDyr_table <- merge.data.table(TotGoednabDyr_table, Goedn_dyretype, all.x = T)
+
+TotGoednabDyr_table[, udbredelse_pr_dyr := TotGoednabDyr_kt_year/sum(TotGoednabDyr_kt_year) * 100, by= 'Dyr']
+TotGoednabDyr_table[, udbredelse_pr_dyretype := TotGoednabDyr_kt_year/TotGoednabDyr * 100, by= 'DyreType']
+
+ab_lager <- setDT(read_excel('../data/ab_lager.xlsx'))[
+  , lager_faktor := ab_lager/ab_dyr][, .(model_gruppe, lager_faktor)]
+
+TotGoednabDyr_table <- merge.data.table(TotGoednabDyr_table, ab_lager, by = 'model_gruppe', all.x =  T)
+TotGoednabDyr_table <- TotGoednabDyr_table[, TotGoednabLager_kt_year := TotGoednabDyr_kt_year * lager_faktor][order(-DyreType)]
+                                                    
 # manure is kt produced per year                                                    
 write.xlsx(TotGoednabDyr_table, '../output/TotGoedningabDyr.xlsx')
 
