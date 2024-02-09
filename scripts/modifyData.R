@@ -61,12 +61,13 @@ old_names <- c('CH4-udledning stald, kg/t gylle ab dyr',
                'CH4-produktion, biogasanlæg, inkl. halm, kg CH4/t gylle ab stald',
                'NH3-udledning stald tempkorr, kg-N/t gylle ab dyr',
                'NH3-udledning lager tempkorr, kg-N/t gylle ab dyr',
-               'N2O-udledning total, kg/t gylle ab dyr'
+               'N2O-udledning direkte total, kg/t gylle ab dyr',
+               'N2O-udledning indirekte total, kg/t gylle ab dyr'
                )
 
 new_names <- c('CH4_dyr_stald', 'CH4_dyr_Stald_aft', 'CH4_dyr_lager', 'CH4_dyr_afg', 'CH4_dyr_biog', 
                'CH4_stald_stald', 'CH4_stald_Stald_aft', 'CH4_stald_lager', 'CH4_stald_afg', 'CH4_stald_biog', 
-               'NH3_dyr_stald', 'NH3_dyr_lager', 'N2O_dyr_dir_tot'
+               'NH3_dyr_stald', 'NH3_dyr_lager', 'N2O_dyr_dir_tot', 'N2O_dyr_indir_tot'
                )
 
 setnames(dat_model, old = old_names, new = new_names)
