@@ -1,5 +1,6 @@
 rm(list = ls())
 
+library(readxl)
 library(data.table)
 library(openxlsx)
 
@@ -127,8 +128,37 @@ out <- out[, ":="(totCO2_eq_tot_pot_red = (totCO2_eq_tot[Scenarie == 'kontrol'] 
                   CO2_eq_tot_red = (CO2_eq_tot[Scenarie == 'kontrol'] - CO2_eq_tot)), 
            by = c('model_gruppe')][order(Scenarie),]
 
+names(out)
+
+units <- data.frame(t(data.frame(units = c('model_gruppe', 
+           'Scenarie',  
+           'kg CH4 pr. m3 ab dyr pr. år',
+           'kg CH4 pr. m3 ab dyr pr. år',
+           'kg CH4 pr. m3 ab dyr pr. år',
+           'kg N2O pr. m3 ab dyr pr. år',
+           'kg CO2e fortrængt pr. m3 ab dyr pr. år',
+           'kg CO2e netto pr. m3 ab dyr pr. år',
+           'kt CO2e netto pr. år',
+           'DyreType',
+           'kt ab dyr pr. år',
+           'Dyr',
+           'kg ab dyr pr. dyr prod/årsdyr',
+           '%',
+           '%',
+           'kg ab lager pr. kg ab dyr',
+           'kt ab lager pr. år',
+           '% af modelgruppe',
+           '% af modelgruppe',
+           'kt CO2e potentient reduceret pr. år',
+           'kg CO2e reduceret pr. m3 ab dyr'))))
+    
+names(units) <- names(out)       
+out <- rbind(units, out)
+setDT(out)
 out_table <- out[, .(model_gruppe, Scenarie, CH4_dyr_stald, CH4_dyr_lager, CH4_dyr_tot, N2O_dyr_tot, 
                      CO2_eq_fortræng, udbredelse, potentiale, CO2_eq_tot_red, totCO2_eq_tot_pot_red)]
+names(out_table) <- c(t(out_table[1,]))
+out_table <- out_table[-1,]
 
 write.xlsx(out_table, '../output/emis_table_KVIK.xlsx')
 write.xlsx(out, '../output/emis_table_full.xlsx')
@@ -136,5 +166,3 @@ write.xlsx(out, '../output/emis_table_full.xlsx')
 #how much CO2 eq comes from N2O vs CH4?
 CH4_vs_N2O <- out[Scenarie == 'kontrol', .(N2O_CO2_eq = mean(N2O_dyr_tot * ..CO2_eq[['N2O']]), CH4_CO2_eq = mean(CH4_dyr_tot * ..CO2_eq[['CH4']])), by = c('Dyr')][
   , frac_N2O_CO2_eq := N2O_CO2_eq/(N2O_CO2_eq + CH4_CO2_eq)]
-
-
