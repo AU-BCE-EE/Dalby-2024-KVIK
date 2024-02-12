@@ -18,6 +18,7 @@ spalter_25_50_slagtesvin <- c(73)
 løs_individuel_søer <- c(60, 63, 8, 10, 80, 79)
 farestald_delvis_spalte <- c(64)
 farestald_fuldspalte <- c(65)
+svin_gylle <- c(20,46,47,72,19,73,60,63,8,10,80,79,64,65)
 
 ## KVÆG
 # gylle systemer
@@ -26,6 +27,7 @@ kvæg_fast_skrab <- c(5, 11)
 kvæg_spalter_skrab <- c(7, 14)
 kvæg_hæld_fast_skrab <- c(49)
 kvæg_andre_hyppig <- c(2, 4) # 2 is spaltegulvbokse, what is that? 
+kvæg_gylle <- c(6,13,5,11,7,14,49,2,4)
 
 model_gruppe_navne <- c('toklimastald_smågrise', 
                      'spalter_smågrise',
@@ -35,11 +37,13 @@ model_gruppe_navne <- c('toklimastald_smågrise',
                      'løs_individuel_søer',
                      'farestald_delvis_spalte',
                      'farestald_fuldspalte',
+                     'svin_gylle',
                      'kvæg_ringkanal',
                      'kvæg_fast_skrab',
                      'kvæg_spalter_skrab',
                      'kvæg_hæld_fast_skrab',
-                     'kvæg_andre_hyppig')
+                     'kvæg_andre_hyppig',
+                     'kvæg_gylle')
 
 cols <- c('CH4_dyr_stald', 'CH4_dyr_lager', 'CH4_dyr_biog', 'NH3_dyr_stald', 'NH3_dyr_lager','N2O_dyr_dir_tot', 'N2O_dyr_indir_tot')
 
@@ -128,8 +132,6 @@ out <- out[, ":="(totCO2_eq_tot_pot_red = (totCO2_eq_tot[Scenarie == 'kontrol'] 
                   CO2_eq_tot_red = (CO2_eq_tot[Scenarie == 'kontrol'] - CO2_eq_tot)), 
            by = c('model_gruppe')][order(Scenarie),]
 
-names(out)
-
 units <- data.frame(t(data.frame(units = c('model_gruppe', 
            'Scenarie',  
            'kg CH4 pr. m3 ab dyr pr. år',
@@ -158,7 +160,18 @@ setDT(out)
 out_table <- out[, .(model_gruppe, Scenarie, CH4_dyr_stald, CH4_dyr_lager, CH4_dyr_tot, N2O_dyr_tot, 
                      CO2_eq_fortræng, udbredelse, potentiale, CO2_eq_tot_red, totCO2_eq_tot_pot_red)]
 names(out_table) <- c(t(out_table[1,]))
+unique(out_table$model_gruppe)
 out_table <- out_table[-1,]
+out_table[, model_gruppe:= factor(model_gruppe, levels = c('kvæg_ringkanal','kvæg_fast_skrab','kvæg_spalter_skrab',
+                                                           'kvæg_hæld_fast_skrab','kvæg_andre_hyppig',
+                                                           'spalter_33_67_slagtesvin','spalter_25_50_slagtesvin','spalter_50_75_slagtesvin',
+                                                           'løs_individuel_søer','farestald_delvis_spalte', 'farestald_fuldspalte',
+                                                           'toklimastald_smågrise','spalter_smågrise'))]
+                                                           
+setorder(out_table, Scenarie, model_gruppe)
+
+cols_index <- which(!names(out_table) %in% c('model_gruppe', 'Scenarie'))
+out_table[, (cols_index) := lapply(.SD, function(x) round(as.numeric(x), 3)), .SDcols = cols_index]
 
 write.xlsx(out_table, '../output/emis_table_KVIK.xlsx')
 write.xlsx(out, '../output/emis_table_full.xlsx')
