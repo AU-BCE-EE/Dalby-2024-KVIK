@@ -6,7 +6,8 @@ library(readxl)
 
 dat <- fread('../data/dat_merged.csv')
 
-Goedn_dyretype <- dat[!duplicated(dat[, .(GoedningsNavn, StaldID, DyrNavn)]), .(TotGoednabDyr = sum(TotGoednabDyr)/1000), by = 'DyreType']
+Goedn_dyretype <- dat[!duplicated(dat[, .(GoedningsNavn, StaldID, DyrNavn)]), .(TotGoednabDyr = sum(TotGoednabDyr)/1000), by = c('DyreType', 'GoedningsNavn')]
+
 
 ## SVIN
 # gylle systemer
@@ -18,7 +19,6 @@ spalter_25_50_slagtesvin_StaldID <- c(73)
 løs_individuel_søer_StaldID <- c(60, 63, 8, 10, 80, 79)
 farestald_delvis_spalte_StaldID <- c(64)
 farestald_fuldspalte_StaldID <- c(65)
-svin_gylle_StaldID <- c(20,46,47,72,19,73,60,63,8,10,80,79,64,65)
 # dybstrøelse
 svin_dybstrøelse_StaldID <- c(8, 10, 15, 19, 21, 79)
 
@@ -38,7 +38,6 @@ kvæg_fast_skrab_StaldID <- c(5, 11)
 kvæg_spalter_skrab_StaldID <- c(7, 14)
 kvæg_hæld_fast_skrab_StaldID <- c(49)
 kvæg_andre_hyppig_StaldID <- c(2, 4) # 2 is spaltegulvbokse, what is that? 
-kvæg_gylle_StaldID <- c(6,13,5,11,7,14,49,2,4)
 # dybstrøelse
 kvæg_dybstrøelse_StaldID <- c(9, 11, 12, 13, 14) # 
 
@@ -66,7 +65,6 @@ TotGoednabDyr_table <- data.table(model_gruppe = c('toklimastald_smågrise',
                                                 'svin_fastgødning',
                                                 'svin_ajle',
                                                 'svin_ude',
-                                                'svin_gylle',
                                                 'kvæg_ringkanal',
                                                 'kvæg_fast_skrab',
                                                 'kvæg_spalter_skrab',
@@ -74,8 +72,7 @@ TotGoednabDyr_table <- data.table(model_gruppe = c('toklimastald_smågrise',
                                                 'kvæg_andre_hyppig',
                                                 'kvæg_dybstrøelse',
                                                 'kvæg_fastgødning',
-                                                'kvæg_ajle',
-                                                'kvæg_gylle'),
+                                                'kvæg_ajle'),
                                   DyreType = c('smågrise',
                                                'smågrise',
                                                'slagtesvin',
@@ -108,7 +105,6 @@ TotGoednabDyr_table <- data.table(model_gruppe = c('toklimastald_smågrise',
                                                     fastgødning[StaldID %in% svin_fastgødning_StaldID, sum(TotGoednabDyr)],
                                                     ajle[StaldID %in% svin_ajle_StaldID, sum(TotGoednabDyr)],
                                                     ude[StaldID %in% svin_ude_StaldID, sum(TotGoednabDyr)],
-                                                    gylle[StaldID %in% svin_gylle_StaldID, sum(TotGoednabDyr)],
                                                     gylle[StaldID %in% kvæg_ringkanal_StaldID, sum(TotGoednabDyr)],
                                                     gylle[StaldID %in% kvæg_fast_skrab_StaldID, sum(TotGoednabDyr)],
                                                     gylle[StaldID %in% kvæg_spalter_skrab_StaldID, sum(TotGoednabDyr)],
@@ -116,8 +112,7 @@ TotGoednabDyr_table <- data.table(model_gruppe = c('toklimastald_smågrise',
                                                     gylle[StaldID %in% kvæg_andre_hyppig_StaldID, sum(TotGoednabDyr)],
                                                     dybstrøelse[StaldID %in% kvæg_dybstrøelse_StaldID, sum(TotGoednabDyr)],
                                                     fastgødning[StaldID %in% kvæg_fastgødning_StaldID, sum(TotGoednabDyr)],
-                                                    ajle[StaldID %in% kvæg_ajle_StaldID, sum(TotGoednabDyr)],
-                                                    gylle[StaldID %in% kvæg_gylle_StaldID, sum(TotGoednabDyr)])/1000)
+                                                    ajle[StaldID %in% kvæg_ajle_StaldID, sum(TotGoednabDyr)])/1000)
 
 
 TotGoednabDyr_table[grepl('svin|smågrise|søer|slagtesvin', DyreType), Dyr := 'svin']

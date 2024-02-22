@@ -37,17 +37,17 @@ model_gruppe_navne <- c('toklimastald_smågrise',
                      'løs_individuel_søer',
                      'farestald_delvis_spalte',
                      'farestald_fuldspalte',
-                     'svin_gylle',
                      'kvæg_ringkanal',
                      'kvæg_fast_skrab',
                      'kvæg_spalter_skrab',
                      'kvæg_hæld_fast_skrab',
-                     'kvæg_andre_hyppig',
-                     'kvæg_gylle')
+                     'kvæg_andre_hyppig'
+                     )
 
-cols <- c('CH4_dyr_stald', 'CH4_dyr_lager', 'CH4_dyr_biog', 'NH3_dyr_stald', 'NH3_dyr_lager','N2O_dyr_dir_tot', 'N2O_dyr_indir_tot')
+cols <- c('CH4_dyr_stald', 'CH4_dyr_lager', 'CH4_dyr_biog', 'NH3_dyr_stald', 'NH3_dyr_lager','N2O_dyr_dir_tot', 'N2O_dyr_indir_tot', 'strøm_CO2_ton')
 
 tot_cols <- paste0('tot', cols)
+dat[, strøm_CO2_ton := 0]
 
 # Initialize the total columns with 0
 dat <- dat[, (tot_cols) := 0][!duplicated(dat)]
@@ -73,8 +73,12 @@ køling_biogas <- copy(dat)[Scenarie == 'køling'][
 
 dat <- rbind(dat, biogas, ugentlig_biogas, køling_biogas)
 
+dat[grepl('køling', Scenarie) & DyreType == 'smågrise', strøm_CO2_ton := 1.3]
+dat[grepl('køling', Scenarie) & DyreType == 'slagtesvin', strøm_CO2_ton := 1.4]
+dat[grepl('køling', Scenarie) & DyreType == 'søer', strøm_CO2_ton := 1.8]
+
 # Multiply each column in 'cols' by 1 (no change), emis units in kg CH4/m3/year or kg CH4/year, kg CO2 eq/m3/year, kg CO2 eq/year
-# totCO2_eq_tot is in kt CO2 eq (so kg CO2 eq multiplied by 10^6)
+# totCO2_eq_tot is in kt CO2 eq emitted (so kg CO2 eq multiplied by 10^6)
 emis <- dat[, (cols) := lapply(.SD, function(x) x * 1), .SDcols = cols, by = c('StaldID', 'Scenarie', 'GoedningsNavn')][
   , (tot_cols) := lapply(.SD, function(x) x * TotGoednabDyr), .SDcols = cols, by = c('StaldID', 'Scenarie')][
     , ":="(CH4_dyr_tot = CH4_dyr_stald + CH4_dyr_lager,
@@ -82,17 +86,17 @@ emis <- dat[, (cols) := lapply(.SD, function(x) x * 1), .SDcols = cols, by = c('
            N2O_dyr_tot = N2O_dyr_indir_tot + N2O_dyr_dir_tot)][
              , ":=" (CO2_eq_tot_CH4 = CH4_dyr_tot * ..CO2_eq[['CH4']],
                       CO2_eq_tot_N2O = N2O_dyr_tot * ..CO2_eq[['N2O']])][
-                        , CO2_eq_tot := CO2_eq_tot_N2O + CO2_eq_tot_CH4][
+                        , CO2_eq_tot := CO2_eq_tot_N2O + CO2_eq_tot_CH4 + strøm_CO2_ton][
                , ":="(totCH4_dyr_tot = totCH4_dyr_stald + totCH4_dyr_lager,
                       totN2O_dyr_tot = totN2O_dyr_dir_tot + totN2O_dyr_indir_tot)][
                         , totCO2_eq_tot := (totCH4_dyr_tot * ..CO2_eq[['CH4']] + 
-                          totN2O_dyr_tot * ..CO2_eq[['N2O']])/1e+06]
+                          totN2O_dyr_tot * ..CO2_eq[['N2O']] + totstrøm_CO2_ton)/1e+06]
 
 # totCO2_eq_fortræng is in kt CO2 eq (so kg CO2 eq multiplied by 10^6)
 emis[, model_gruppe := 'char']
 emis[!grepl('biogas', Scenarie), ":="(CH4_dyr_biog = 0, totCH4_dyr_biog = 0)]
-emis[, ":="(CO2_eq_fortræng = CH4_dyr_biog * 2.8,
-            totCO2_eq_fortræng = (totCH4_dyr_biog * 2.8)/1e+06)][
+emis[, ":="(CO2_eq_fortræng = CH4_dyr_biog * 2.37,
+            totCO2_eq_fortræng = (totCH4_dyr_biog * 2.37)/1e+06)][
               , ":="(CO2_eq_tot = CO2_eq_tot - CO2_eq_fortræng,
                      totCO2_eq_tot = totCO2_eq_tot - totCO2_eq_fortræng)
             ]
@@ -124,13 +128,29 @@ for(i in model_gruppe){
        out[model_gruppe == i & Scenarie == o, ":="(udbredelse = ..Tech_udb[model_gruppe == i, eval(parse(text = o))],
                                                      potentiale = ..Tech_pot[model_gruppe == i, eval(parse(text = o))])]
     }
+    
   }
 }
 
-out <- out[Scenarie != 'kontrol', totCO2_eq_tot := totCO2_eq_tot * (potentiale-udbredelse)/100][order(Scenarie)]
-out <- out[, ":="(totCO2_eq_tot_pot_red = (totCO2_eq_tot[Scenarie == 'kontrol'] - totCO2_eq_tot),
-                  CO2_eq_tot_red = (CO2_eq_tot[Scenarie == 'kontrol'] - CO2_eq_tot)), 
-           by = c('model_gruppe')][order(Scenarie),]
+
+
+out <- out[, ":="(reduktion_totCO2_eq_tot = (totCO2_eq_tot[Scenarie == 'kontrol'] - totCO2_eq_tot) * ((potentiale-udbredelse)/100),
+                  reduktion_CO2_eq_tot_m3 = CO2_eq_tot[Scenarie == 'kontrol'] - CO2_eq_tot), by = 'model_gruppe'][order(Scenarie)]
+
+out_dyr <- copy(out)
+out_dyr <- out_dyr[, .(sum_reduktion_totCO2_eq_tot = sum(reduktion_totCO2_eq_tot),
+            mean_reduktion_totCO2_eq_tot_m3 = sum(reduktion_CO2_eq_tot_m3 * TotGoednabDyr_kt_year)/sum(TotGoednabDyr_kt_year),
+            CH4_dyr_stald = sum(CH4_dyr_stald * TotGoednabDyr_kt_year)/sum(TotGoednabDyr_kt_year),
+            CH4_dyr_lager = sum(CH4_dyr_lager * TotGoednabDyr_kt_year)/sum(TotGoednabDyr_kt_year),
+            CH4_dyr_tot = sum(CH4_dyr_tot * TotGoednabDyr_kt_year)/sum(TotGoednabDyr_kt_year),
+            N2O_dyr_tot = sum(N2O_dyr_tot * TotGoednabDyr_kt_year)/sum(TotGoednabDyr_kt_year),
+            udbredelse = sum(udbredelse * TotGoednabDyr_kt_year)/sum(TotGoednabDyr_kt_year),
+            fortrængning = sum(CO2_eq_fortræng * TotGoednabDyr_kt_year)/sum(TotGoednabDyr_kt_year))
+        , by = c('Scenarie', 'Dyr')]
+
+#summary_Dyr <- out[`potent. % af modelgruppe` != 0, .(sum_emis = sum(`kt ab dyr pr. år` * 1000 * `kg CO2e netto pr. m3 ab dyr pr. år`), 
+#                                                      sum_goedning = sum(`kt ab dyr pr. år` * 1000)), by = c('Dyr','Scenarie')][
+#                                                        , .(red = sum_emis/)
 
 units <- data.frame(t(data.frame(units = c('model_gruppe', 
            'Scenarie',  
@@ -149,16 +169,18 @@ units <- data.frame(t(data.frame(units = c('model_gruppe',
            '%',
            'kg ab lager pr. kg ab dyr',
            'kt ab lager pr. år',
-           '% af modelgruppe',
-           '% af modelgruppe',
+           'udbred. % af modelgruppe',
+           'potent. % af modelgruppe',
            'kt CO2e potentient reduceret pr. år',
            'kg CO2e reduceret pr. m3 ab dyr'))))
     
 names(units) <- names(out)       
 out <- rbind(units, out)
 setDT(out)
+
 out_table <- out[, .(model_gruppe, Scenarie, CH4_dyr_stald, CH4_dyr_lager, CH4_dyr_tot, N2O_dyr_tot, 
-                     CO2_eq_fortræng, udbredelse, potentiale, CO2_eq_tot_red, totCO2_eq_tot_pot_red)]
+                     CO2_eq_fortræng, CO2_eq_tot, TotGoednabDyr_kt_year, udbredelse, potentiale, 
+                     reduktion_CO2_eq_tot_m3, reduktion_totCO2_eq_tot, Dyr)]
 names(out_table) <- c(t(out_table[1,]))
 unique(out_table$model_gruppe)
 out_table <- out_table[-1,]
@@ -170,8 +192,14 @@ out_table[, model_gruppe:= factor(model_gruppe, levels = c('kvæg_ringkanal','kv
                                                            
 setorder(out_table, Scenarie, model_gruppe)
 
-cols_index <- which(!names(out_table) %in% c('model_gruppe', 'Scenarie'))
+cols_index <- which(!names(out_table) %in% c('model_gruppe', 'Scenarie','Dyr'))
 out_table[, (cols_index) := lapply(.SD, function(x) round(as.numeric(x), 3)), .SDcols = cols_index]
+
+#summary_Dyr <- out_table[`potent. % af modelgruppe` != 0, .(sum_emis = sum(`kt ab dyr pr. år` * 1000 * `kg CO2e netto pr. m3 ab dyr pr. år`), 
+#                                                     sum_goedning = sum(`kt ab dyr pr. år` * 1000)), by = c('Dyr','Scenarie')][
+#                                                       , .(red = sum_emis/)
+#                                                                                                                               ]
+
 
 write.xlsx(out_table, '../output/emis_table_KVIK.xlsx')
 write.xlsx(out, '../output/emis_table_full.xlsx')
