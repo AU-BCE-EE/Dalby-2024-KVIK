@@ -140,7 +140,7 @@ out[, TotGoedningabDyr_kt_year_pot := TotGoednabDyr_kt_year * ((potentiale - udb
 out <- out[!duplicated(out[, c('model_gruppe', 'Scenarie')])]
 
 out_pot_goedning <- out[Scenarie != 'kontrol', .(TotGoednabDyr_kt_år = sum(TotGoedningabDyr_kt_year_pot)), by = c('Scenarie', 'Dyr')]
-write.xlsx(out_pot_goedning, '../output/udbredelsesPotentiale_kt_Goedn_år.xlsx')
+write.xlsx(out_pot_goedning, '../output/udbred_poten_kt_Goedn_år.xlsx')
 
 
 out_dyr <- copy(out)
@@ -167,6 +167,7 @@ units <- data.frame(t(data.frame(units = c('model_gruppe',
            'Udledning total, kt CO2e netto pr. år',
            'DyreType',
            'Gødning total, kt ab dyr pr. år',
+           'Tørstof total, kt ab dyr pr. år',
            'Dyr',
            'Gødning, kg ab dyr pr. dyr prod/årsdyr',
            'udbred. tekn., %',
@@ -201,4 +202,3 @@ cols_index <- which(!names(out_table) %in% c('model_gruppe', 'Scenarie','Dyr'))
 out_table[, (cols_index) := lapply(.SD, function(x) round(as.numeric(x), 3)), .SDcols = cols_index]
 
 write.xlsx(out_table, '../output/emis_table_KVIK.xlsx')
-write.xlsx(out, '../output/emis_table_full.xlsx')
