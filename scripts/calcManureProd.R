@@ -6,8 +6,8 @@ library(readxl)
 
 dat <- fread('../data/dat_merged.csv')
 
-Goedn_dyretype <- dat[!duplicated(dat[, .(GoedningsNavn, StaldID, DyrNavn)]), .(TotGoednabDyr = sum(TotGoednabDyr)/1000), by = c('DyreType', 'GoedningsNavn')]
-
+Goedn_dyretype <- dat[!duplicated(dat[, .(GoedningsNavn, StaldID, DyrNavn)]), .(TotGoednabDyr = sum(TotGoednabDyr)/1000), by = c('DyreType')]
+Goedn_dyretype <- Goedn_dyretype[!is.na(TotGoednabDyr)]
 
 ## SVIN
 # gylle systemer
@@ -47,11 +47,12 @@ kvæg_fastgødning_StaldID <- c(3)
 # ajle
 kvæg_ajle_StaldID <- c(3)
 
-gylle <- dat[GoedningsNavn == 'Gylle' & (Scenarie == 'kontrol'|Scenarie == ""| is.na(Scenarie)), .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID','GoedningsNavn')]
-dybstrøelse <- dat[grepl('Dybstrøelse', GoedningsNavn), .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
-fastgødning <- dat[grepl('Fast gødning', GoedningsNavn), .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
-ajle <- dat[GoedningsNavn == 'Ajle', .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
-ude <- dat[GoedningsNavn == 'Ude', .(TotGoednabDyr = sum(TotGoednabDyr)), by = c('StaldID')]
+gylle <- dat[GoedningsNavn == 'Gylle' & (Scenarie == 'kontrol'|Scenarie == ""| is.na(Scenarie)), .(TotGoednabDyr = sum(TotGoednabDyr), TotTSabDyr = sum(TotGoednabDyr * TSabDyr/100)), by = c('StaldID','GoedningsNavn')]
+#gylle <- gylle[!duplicated(gylle)]
+dybstrøelse <- dat[grepl('Dybstrøelse', GoedningsNavn), .(TotGoednabDyr = sum(TotGoednabDyr), TotTSabDyr = sum(TotGoednabDyr * TSabDyr/100)), by = c('StaldID')]
+fastgødning <- dat[grepl('Fast gødning', GoedningsNavn), .(TotGoednabDyr = sum(TotGoednabDyr), TotTSabDyr = sum(TotGoednabDyr * TSabDyr/100)), by = c('StaldID')]
+ajle <- dat[GoedningsNavn == 'Ajle', .(TotGoednabDyr = sum(TotGoednabDyr), TotTSabDyr = sum(TotGoednabDyr * TSabDyr/100)), by = c('StaldID')]
+ude <- dat[GoedningsNavn == 'Ude', .(TotGoednabDyr = sum(TotGoednabDyr), TotTSabDyr = sum(TotGoednabDyr * TSabDyr/100)), by = c('StaldID')]
 
 TotGoednabDyr_table <- data.table(model_gruppe = c('toklimastald_smågrise',
                                                 'spalter_smågrise',
@@ -112,7 +113,27 @@ TotGoednabDyr_table <- data.table(model_gruppe = c('toklimastald_smågrise',
                                                     gylle[StaldID %in% kvæg_andre_hyppig_StaldID, sum(TotGoednabDyr)],
                                                     dybstrøelse[StaldID %in% kvæg_dybstrøelse_StaldID, sum(TotGoednabDyr)],
                                                     fastgødning[StaldID %in% kvæg_fastgødning_StaldID, sum(TotGoednabDyr)],
-                                                    ajle[StaldID %in% kvæg_ajle_StaldID, sum(TotGoednabDyr)])/1000)
+                                                    ajle[StaldID %in% kvæg_ajle_StaldID, sum(TotGoednabDyr)])/1000,
+                                TotTSabDyr_kt_year = c(gylle[StaldID %in% toklimastald_smågrise_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% spalter_smågrise_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% spalter_33_67_slagtesvin_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% spalter_50_75_slagtesvin_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% spalter_25_50_slagtesvin_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% løs_individuel_søer_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% farestald_delvis_spalte_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% farestald_fuldspalte_StaldID, sum(TotTSabDyr)],
+                                                    dybstrøelse[StaldID %in% svin_dybstrøelse_StaldID, sum(TotTSabDyr)],
+                                                    fastgødning[StaldID %in% svin_fastgødning_StaldID, sum(TotTSabDyr)],
+                                                    ajle[StaldID %in% svin_ajle_StaldID, sum(TotTSabDyr)],
+                                                    ude[StaldID %in% svin_ude_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% kvæg_ringkanal_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% kvæg_fast_skrab_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% kvæg_spalter_skrab_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% kvæg_hæld_fast_skrab_StaldID, sum(TotTSabDyr)],
+                                                    gylle[StaldID %in% kvæg_andre_hyppig_StaldID, sum(TotTSabDyr)],
+                                                    dybstrøelse[StaldID %in% kvæg_dybstrøelse_StaldID, sum(TotTSabDyr)],
+                                                    fastgødning[StaldID %in% kvæg_fastgødning_StaldID, sum(TotTSabDyr)],
+                                                    ajle[StaldID %in% kvæg_ajle_StaldID, sum(TotTSabDyr)])/1000)
 
 
 TotGoednabDyr_table[grepl('svin|smågrise|søer|slagtesvin', DyreType), Dyr := 'svin']

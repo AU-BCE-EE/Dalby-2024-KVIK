@@ -1,3 +1,5 @@
+# Frederik Rask Dalby, 01.03.2024
+
 rm(list = ls())
 
 library(data.table)
@@ -38,35 +40,29 @@ dyretype_goedning <- dat[, sum(TotGoednabDyr), by = 'DyreType']
 
 
 #model dat
-dat_model_pig <- data.table(t(read_excel('../model/Metanproduktion_Arrhenius_v8_30012024.xlsx')))
+dat_model_pig <- data.table(t(read_excel('../model/Metanproduktion_Arrhenius_v8_30012024_efter_rettelse_fra_fagfællebedømmelse.xlsx')))
 names(dat_model_pig) <- as.character(dat_model_pig[1, ])
 dat_model_pig <- dat_model_pig[-c(1:2), ]
 
-dat_model_cattle <- data.table(t(read_excel('../model/Metanproduktion_Arrhenius_v8_30012024.xlsx', sheet = 'Tabel_kvæg')))
+dat_model_cattle <- data.table(t(read_excel('../model/Metanproduktion_Arrhenius_v8_30012024_efter_rettelse_fra_fagfællebedømmelse.xlsx', sheet = 'Tabel_kvæg')))
 names(dat_model_cattle) <- as.character(dat_model_cattle[1, ])
 dat_model_cattle <- dat_model_cattle[-c(1:2), ]
 
 dat_model <- rbind(dat_model_pig, dat_model_cattle, fill =T)
 
 #fix names in model spreadsheet
-old_names <- c('CH4-udledning stald, kg/t gylle ab dyr', 
-               'CH4-udledning stald og for/afhent.tank, kg/t gylle ab dyr', 
-               'CH4-udledning lager, kg/t gylle ab dyr',
-               'CH4-udledning, afgasset gylle, kg/t gylle ab dyr',
-               'CH4-produktion, biogasanlæg, kg CH4/t gylle ab dyr',
-               'CH4-udledning stald, kg/t gylle ab stald', 
-               'CH4-udledning stald og for/afhent.tank, kg/t gylle ab stald', 
-               'CH4-udledning lager, kg/t gylle ab stald',
-               'CH4-udledning, afgasset gylle, kg/t gylle ab stald',
-               'CH4-produktion, biogasanlæg, inkl. halm, kg CH4/t gylle ab stald',
-               'NH3-udledning stald tempkorr, kg-N/t gylle ab dyr',
-               'NH3-udledning lager tempkorr, kg-N/t gylle ab dyr',
-               'N2O-udledning direkte total, kg/t gylle ab dyr',
-               'N2O-udledning indirekte total, kg/t gylle ab dyr'
+old_names <- c('CH4-udledning stald, gylle ab dyr', 
+               'CH4-udledning stald og for/afhent.tank, gylle ab dyr', 
+               'CH4-udledning lager, gylle ab dyr',
+               'CH4-udledning, afgasset gylle, gylle ab dyr',
+               'CH4-produktion, biogasanlæg, gylle ab dyr',
+               'NH3-udledning ab stald, gylle',
+               'NH3-udledning ab lager, gylle',
+               'N2O-udledning direkte total, gylle',
+               'N2O-udledning indirekte total, gylle'
                )
 
 new_names <- c('CH4_dyr_stald', 'CH4_dyr_Stald_aft', 'CH4_dyr_lager', 'CH4_dyr_afg', 'CH4_dyr_biog', 
-               'CH4_stald_stald', 'CH4_stald_Stald_aft', 'CH4_stald_lager', 'CH4_stald_afg', 'CH4_stald_biog', 
                'NH3_dyr_stald', 'NH3_dyr_lager', 'N2O_dyr_dir_tot', 'N2O_dyr_indir_tot'
                )
 
