@@ -1,5 +1,5 @@
 # Dalby-2024-KVIK
-This repositroy contains code, data and models for calculating greenhouse gas emission and mitigation of greenhouse gas emission in The report:
+This repositroy contains code, data and models for calculating greenhouse gas emission and mitigation of greenhouse gas emission in the report:
 Virkemidler til reduktion af klimagasser i landbruget. 2024, Kapitel 6: Husdyrgødning  
 
 # Maintainer
