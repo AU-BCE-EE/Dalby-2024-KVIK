@@ -144,7 +144,7 @@ write.xlsx(out_pot_goedning, '../output/udbred_poten_kt_Goedn_år.xlsx')
 
 
 out_dyr <- copy(out)
-out_dyr <- out_dyr[, .(sum_reduktion_totCO2_eq_tot = sum(reduktion_totCO2_eq_tot),
+out_dyr <- out_dyr[potentiale != 0, .(sum_reduktion_totCO2_eq_tot = sum(reduktion_totCO2_eq_tot),
             mean_reduktion_totCO2_eq_tot_m3 = sum(reduktion_CO2_eq_tot_m3 * TotGoednabDyr_kt_year)/sum(TotGoednabDyr_kt_year),
             CH4_dyr_stald = sum(CH4_dyr_stald * TotGoednabDyr_kt_year)/sum(TotGoednabDyr_kt_year),
             CH4_dyr_lager = sum(CH4_dyr_lager * TotGoednabDyr_kt_year)/sum(TotGoednabDyr_kt_year),
