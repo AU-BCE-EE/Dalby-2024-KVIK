@@ -7,10 +7,8 @@ Frederik Rask Dalby.
 Contact information here: <https://au.dk/fd@bce.au.dk>
 
 # Published report
-<https://doi.org/10.1016/j.aeaoa.2023.100205>, 
 
 # Releases
-Add a note to users about releases here, e.g.: 
 
 # Directory information
 To run the complete code execute `run/main.R`. This will run the scripts under `scripts/`
